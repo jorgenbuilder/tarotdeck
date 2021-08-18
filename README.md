@@ -74,10 +74,11 @@ This will initialize a canister with some metadata, and with your local dfx iden
 for file in ./art/*; dfx canister call tarotdeck assetAdmin "(record {\
     index = $(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\2/");\
     asset = record {\
-        contentType = image/$(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\3/");\
-        payload = [\"$(hexdump -v -e '1/1 "%02x"' $file)\"];\
+        contentType = \"image/$(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\3/")\";\
+        payload = vec { \"$(hexdump -v -e '1/1 "%02x"' $file)\" };\
     }\
 })"
+# Invalid data: Unable to serialize Candid values: type mismatch: "..." cannot be of type vec nat8
 ```
 
 
