@@ -1,29 +1,15 @@
 {
   "canisters": {
-    "sagadeck": {
-      "main": "src/sagadeck/main.mo",
+    "tarotdeck": {
+      "main": "src/lib.mo",
       "type": "motoko"
-    },
-    "sagadeck_assets": {
-      "dependencies": [
-        "sagadeck"
-      ],
-      "frontend": {
-        "entrypoint": "src/sagadeck_assets/src/index.html"
-      },
-      "source": [
-        "src/sagadeck_assets/assets",
-        "dist/sagadeck_assets/"
-      ],
-      "type": "assets"
     }
   },
   "defaults": {
     "build": {
-      "packtool": ""
+      "packtool": "vessel sources"
     }
   },
-  "dfx": "0.7.2",
   "networks": {
     "local": {
       "bind": "127.0.0.1:8000",

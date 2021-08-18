@@ -40,6 +40,47 @@ The intention is that an owner of an individual deck can plug it in to many diff
 This repository, like the Saga project as a whole, is open to PRs and general contributions. The goal is to turn this project into a tokenized open business.
 
 
+## Deploy a Deck Can
+
+We'll be doing this using the CLI, which will require `didc`: https://github.com/dfinity/candid/releases.
+Currently, the canister is initialized with the caller as the owner. This means we have to call the init method using `wallet_call`.
+
+```zsh
+dfx start --background
+dfx deploy
+dfx canister call $(dfx identity get-wallet) wallet_call "(record {\
+    canister = principal \"$(dfx canister id tarotdeck)\";\
+    method_name = \"init\";\
+    cycles = (0:nat64);\
+    args = $(didc encode "(
+        vec {\
+            principal \"$(dfx identity get-principal)\";\
+        },\
+        record {\
+            name = \"R.W.S.\";\
+            description = \"A basic Rider Waite Smith deck.\";\
+            symbol = \"🃏\";\
+            artists = vec {\
+                \"Pamela Coleman Smith\"\
+            };\
+        }\
+    )" -f blob);\
+})"
+```
+
+This will initialize a canister with some metadata, and with your local dfx identity as an owner. Next, you'll need to provision card art to the canister:
+
+```zsh
+for file in ./art/*; dfx canister call tarotdeck assetAdmin "(record {\
+    index = $(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\2/");\
+    asset = record {\
+        contentType = image/$(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\3/");\
+        payload = [\"$(hexdump -v -e '1/1 "%02x"' $file)\"];\
+    }\
+})"
+```
+
+
 ## Roadmap
 
 - [ ] Saga decks can be listed on Toniq's marketplace (adhere to EXT standard.)

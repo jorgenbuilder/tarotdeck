@@ -44,65 +44,9 @@ import ExtCore "mo:ext/Core";
 import ExtNonFungible "mo:ext/NonFungible";
 import ExtAccountId "mo:ext/util/AccountIdentifier";
 
-import C4 "./c4";
+import C4 "mo:c4";
 import Tarot "./types/tarot";
-import TarotData "./tarot-basic-data";
-
-
-////////////////////////////////////////
-// Get to know this Saga Deck Can 🃏 //
-//////////////////////////////////////
-
-// Let's start with what betadeck can do. Here's the public interface that it exposes to the world:
-
-type BetaDeckCanister = {
-    
-    // Run once
-
-    init : shared (owners : [Principal], metadata : Tarot.DeckCanMeta) -> async ([Principal], Tarot.DeckCanMeta);
-
-    // About this can
-
-    metadata : shared query () -> async Tarot.DeckCanMeta;
-
-    // Tarot things
-
-    randomizedCard : shared () -> async Tarot.RandomizedCard;
-    // randomizedDeck : shared () -> async Tarot.RandomizedDeck;
-
-    // Asset access
-
-    // asset : shared query () -> async DlNftTypes.StaticAsset;
-    http_request : shared (path : Text) -> async DlNftTypes.StaticAsset;
-
-    // NFT things: Tarot
-
-    nftOfOwner : shared query () -> async ();
-    ownerOfNft : shared query () -> async ();
-
-    // NFT things: Ext
-
-    extensions : shared query () -> async [ExtCore.Extension];
-    bearer : shared query (token : ExtCore.TokenIdentifier) -> async Result.Result<ExtCore.AccountIdentifier, ExtCore.CommonError>;
-    mint : shared (request : ExtNonFungible.MintRequest) -> async ();
-    transfer : shared (request : ExtCore.TransferRequest) -> async ExtCore.TransferResponse;
-
-    // Admin: general
-
-    canisterOwners : shared () -> async ();
-
-    // Admin: initial setup
-
-    assetAdmin : shared () -> async ();
-    assetCheck : shared query () -> async ();
-    assetLock : shared () -> async ();
-
-    // Cycles utility
-
-    c4Send : shared query (amount : Nat) -> async Nat;
-    c4Receive : shared () -> async Nat;
-    c4Query : shared () -> async Nat;
-};
+import Cards "./cards";
 
 
 ////////////////////////////
@@ -153,7 +97,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
 
     // A canister must be initialized with its owners and initial data before it can be used.
-    shared ({caller}) func init (owners : [Principal], metadata : Tarot.DeckCanMeta) : async ([Principal], Tarot.DeckCanMeta) {
+    public shared ({caller}) func init (owners : [Principal], metadata : Tarot.DeckCanMeta) : async ([Principal], Tarot.DeckCanMeta) {
         assert not INITIALIZED and caller == OWNERS[0];
         OWNERS := Array.append(OWNERS, owners);
         METADATA := metadata;
@@ -162,7 +106,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
     // Return basic information describing this canister and the deck that it represents.
-    shared query func metadata () : async Tarot.DeckCanMeta {
+    public shared query func metadata () : async Tarot.DeckCanMeta {
         METADATA;
     };
 
@@ -173,12 +117,12 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
 
     // Ext standard: list available extensions
-    shared query func extensions () : async [ExtCore.Extension] {
+    public shared query func extensions () : async [ExtCore.Extension] {
         EXTENSIONS;
     };
 
     // Ext standard: get balance
-    shared query func balance (request : ExtCore.BalanceRequest) : async ExtCore.BalanceResponse {
+    public shared query func balance (request : ExtCore.BalanceRequest) : async ExtCore.BalanceResponse {
         if (not ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(canister))) {
             return #err(#InvalidToken(request.token));
         };
@@ -194,7 +138,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
     // Ext standard: transfer owner
-    shared({ caller }) func transfer (request : ExtCore.TransferRequest) : async ExtCore.TransferResponse {
+    public shared ({ caller }) func transfer (request : ExtCore.TransferRequest) : async ExtCore.TransferResponse {
         if (request.amount != 1) {
             return #err(#Other("Only logical transfer amount for an NFT is 1, got" # Nat.toText(request.amount) # "."));
         };
@@ -218,7 +162,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
     // Ext standard: get bearer of token
-    shared query func bearer (token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.AccountIdentifier, ExtCore.CommonError> {
+    public shared query func bearer (token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.AccountIdentifier, ExtCore.CommonError> {
         if (not ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(canister))) {
             return #err(#InvalidToken(token));
         };
@@ -230,7 +174,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
     // Ext standard: mint an NFT
-    shared({ caller }) func mint (request : ExtNonFungible.MintRequest) : async () {
+    public shared ({ caller }) func mint (request : ExtNonFungible.MintRequest) : async () {
         assert _isOwner(caller);
         let recipient = ExtCore.User.toAID(request.to);
         let token = NEXT_ID;
@@ -245,8 +189,8 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     ///////////////
 
 
-    shared query func nftOfOwner () : async () {};
-    shared query func ownerOfNft () : async () {};
+    public shared query func nftOfOwner () : async () {};
+    public shared query func ownerOfNft () : async () {};
 
 
     // NFT things (Departure)
@@ -258,7 +202,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     /////////////////
 
 
-    shared func randomizedCard () : async Tarot.RandomizedCard {
+    public shared func randomizedCard () : async Tarot.RandomizedCard {
         let randomness = Random.Finite(await Random.blob());
         let index = do {
             switch (randomness.byte()) {
@@ -268,7 +212,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         };
 
         {
-            card = TarotData.Cards[index];
+            card = Cards.Cards[index];
             reversed = do {
                 switch (randomness.byte()) {
                     case null { throw Error.reject("Randomness failure"); };
@@ -280,7 +224,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     // Get a whole deck with each card in a random position
     // Returns a list of 78 randomized cards, where each card is only represented once
-    // shared query func randomizedDeck () : async Tarot.RandomizedDeck {
+    // public shared query func randomizedDeck () : async Tarot.RandomizedDeck {
     //     // TODO
     // };
 
@@ -338,7 +282,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     type UpdateOwnerResponse = Result.Result<[Principal], ExtCore.CommonError>;
 
-    shared ({ caller }) func updateOwners (request : UpdateOwnerRequest) : async UpdateOwnerResponse {
+    public shared ({ caller }) func updateOwners (request : UpdateOwnerRequest) : async UpdateOwnerResponse {
         assert _isOwner(caller);
         switch (request.method) {
             case (#add) {
@@ -350,7 +294,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
                 }
             };
             case (#remove) {
-                OWNERS := Array.filter<Principal>(OWNERS, func(v) {v != p});
+                OWNERS := Array.filter<Principal>(OWNERS, func(v) {v != request.principal});
                 #ok(OWNERS);
             }
         };
@@ -363,23 +307,17 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     type AssetAdminResponse = Result.Result<(), ExtCore.CommonError>;
 
-    shared ({ caller }) func assetAdmin (request : AssetAdminRequest) : async AssetAdminResponse {
+    public shared ({ caller }) func assetAdmin (request : AssetAdminRequest) : async AssetAdminResponse {
         assert _isOwner(caller);
         ASSETS[request.index] := ?request.asset;
         #ok()
     };
 
-    shared ({ caller }) func assetCheck () : async Result.Result<(), ExtCore.CommonError> {
+    public shared ({ caller }) func assetCheck () : async () {
         assert _isOwner(caller);
-        let missing = Array.filter<?StaticAsset>(ASSETS, func a { a == null });
-        if (Iter.size(missing) > 0) {
-            #err(#Other("Missing assets"));
-        } else {
-            #ok();
-        };
     };
 
-    shared ({ caller }) func assetLock () : async () {
+    public shared ({ caller }) func assetLock () : async () {
         assert _isOwner(caller);
     };
 
@@ -391,13 +329,13 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     /* It's nice to be able to send, receive and query cycles.
      */
-    shared func c4Query() : async Nat {
+    public shared func c4Query() : async Nat {
         await C4.available();
     };
-    shared func c4Receive() : async Nat {
+    public shared func c4Receive() : async Nat {
         await C4.accept();
     };
-    shared ({ caller }) func c4Send(amount : Nat) : async Nat {
+    public shared ({ caller }) func c4Send(amount : Nat) : async Nat {
         assert _isOwner(caller);
         await C4.send(amount);
     };
