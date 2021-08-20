@@ -75,10 +75,11 @@ for file in ./art/*; dfx canister call tarotdeck assetAdmin "(record {\
     index = $(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\2/");\
     asset = record {\
         contentType = \"image/$(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\3/")\";\
-        payload = vec { \"$(hexdump -v -e '1/1 "%02x"' $file)\" };\
+        payload = vec {\
+            vec { $(for byte in $(od -v -An -tuC $file | sed -E "s/[0-9]+//"); echo "$byte;") };\
+        };\
     }\
 })"
-# Invalid data: Unable to serialize Candid values: type mismatch: "..." cannot be of type vec nat8
 ```
 
 
