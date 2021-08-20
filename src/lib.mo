@@ -325,7 +325,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
                 missingAssets := Array.append(missingAssets, [i]);
             };
         };
-        if (Option.isNull(?missingAssets[0])) {
+        if (Iter.size(Iter.fromArray(missingAssets)) == 0) {
             return #ok();
         } else {
             return #err(missingAssets);
