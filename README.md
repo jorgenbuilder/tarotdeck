@@ -71,6 +71,8 @@ dfx canister call $(dfx identity get-wallet) wallet_call "(record {\
 This will initialize a canister with some metadata, and with your local dfx identity as an owner. Next, you'll need to provision card art to the canister:
 
 ```zsh
+# Mileage will vary with this bash script. My MacOS zsh can handle up to ~250kb files, but WSL Ubuntu can't run this at all.
+# TODO: A new upload script 
 for file in ./art/*; dfx canister call tarotdeck assetAdmin "(record {\
     index = $(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\2/");\
     asset = record {\
