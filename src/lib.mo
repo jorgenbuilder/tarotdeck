@@ -240,6 +240,10 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     let BAD_REQUEST : DlNftHttp.Response = {status_code = 400; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
     let UNAUTHORIZED : DlNftHttp.Response = {status_code = 401; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
 
+    public query func asset (index : Nat) : async ?DlNftTypes.StaticAsset {
+        ASSETS[index];
+    };
+
     public query func http_request(request : DlNftHttp.Request) : async DlNftHttp.Response {
         let path = Iter.toArray(Text.tokens(request.url, #text("/")));
 
@@ -313,8 +317,19 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         #ok()
     };
 
-    public shared ({ caller }) func assetCheck () : async () {
+    public shared ({ caller }) func assetCheck () : async Result.Result<(), [Nat]> {
         assert _isOwner(caller);
+        var missingAssets : [Nat] = [];
+        for (i in Iter.range(0, 79)) {
+            if (Option.isNull(ASSETS[i])) {
+                missingAssets := Array.append(missingAssets, [i]);
+            };
+        };
+        if (Option.isNull(?missingAssets[0])) {
+            return #ok();
+        } else {
+            return #err(missingAssets);
+        };
     };
 
     public shared ({ caller }) func assetLock () : async () {
