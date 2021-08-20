@@ -78,7 +78,7 @@ for file in ./art/*; dfx canister call tarotdeck assetAdmin "(record {\
     asset = record {\
         contentType = \"image/$(echo $file | sed -E "s/(\.\/art\/)([0-9]+)\.(webp)/\3/")\";\
         payload = vec {\
-            vec { $(for byte in $(od -v -An -tuC $file | sed -E "s/[0-9]+//"); echo "$byte;") };\
+            vec { $(for byte in $(od -v -tuC $file | sed -E "s/[0-9]+//"); echo "$byte;") };\
         };\
     }\
 })"

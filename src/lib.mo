@@ -24,6 +24,7 @@
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Cycles "mo:base/ExperimentalCycles";
+import Debug "mo:base/Debug";
 import Error "mo:base/Error";
 import HashMap "mo:base/HashMap";
 import Float "mo:base/Float";
@@ -246,8 +247,9 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     public query func http_request(request : DlNftHttp.Request) : async DlNftHttp.Response {
         let path = Iter.toArray(Text.tokens(request.url, #text("/")));
+        Debug.print("Handle HTTP: " # request.url);
 
-        if (path[0] == "card") return _handleCardRequest(path[1]);
+        if (path[0] == "card-art") return _handleCardRequest(path[1]);
 
         return NOT_FOUND;
     };
@@ -276,8 +278,6 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     // Shared Admin //
     /////////////////
 
-
-    // TODO
 
     type UpdateOwnerRequest = {
         method : { #add; #remove; };
@@ -334,6 +334,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     public shared ({ caller }) func assetLock () : async () {
         assert _isOwner(caller);
+        // TODO
     };
 
 
