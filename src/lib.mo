@@ -73,6 +73,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         artists = [];
     };
     stable var OWNERS : [Principal] = [creator];
+    stable var LOCKED : Bool = false;
 
     // We store the next token ID, which just keeps iterating forward
     stable var NEXT_ID : ExtCore.TokenIndex = 0;
@@ -255,6 +256,8 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
     private func _handleCardRequest(path : Text) : DlNftHttp.Response {
+        var cache = "0";  // No cache
+        if (LOCKED) { cache := "86400" };  // Cache one day
         for (i in Iter.range(0, 79)) {
             if (Int.toText(i) == path) {
                 switch(ASSETS[i]) {
@@ -262,7 +265,10 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
                     case (?asset) {
                         return {
                             body = asset.payload[0];
-                            headers = [("Content-Type", asset.contentType)];
+                            headers = [
+                                ("Content-Type", asset.contentType),
+                                ("Cache-Control", "max-age=" # cache),
+                            ];
                             status_code = 200;
                             streaming_strategy = null;
                         };
@@ -313,6 +319,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     public shared ({ caller }) func assetAdmin (request : AssetAdminRequest) : async AssetAdminResponse {
         assert _isOwner(caller);
+        assert LOCKED == false;
         ASSETS[request.index] := ?request.asset;
         #ok()
     };
@@ -332,9 +339,10 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         };
     };
 
-    public shared ({ caller }) func assetLock () : async () {
+    public shared ({ caller }) func assetLock () : async Bool {
         assert _isOwner(caller);
-        // TODO
+        LOCKED := not LOCKED;
+        LOCKED;
     };
 
 
@@ -348,10 +356,11 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     public shared func c4Query() : async Nat {
         await C4.available();
     };
-    public shared func c4Receive() : async Nat {
+    public shared func c4Donate() : async Nat {
+        Debug.print(Nat.toText(Cycles.available()));
         await C4.accept();
     };
-    public shared ({ caller }) func c4Send(amount : Nat) : async Nat {
+    public shared ({ caller }) func c4Withdraw(amount : Nat) : async Nat {
         assert _isOwner(caller);
         await C4.send(amount);
     };
