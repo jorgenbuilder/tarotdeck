@@ -1,4 +1,4 @@
-import Tarot "./types/tarot";
+import Tarot "../types/tarot";
 
 module {
     public let Cards : [Tarot.Card] = [

@@ -47,7 +47,7 @@ import ExtAccountId "mo:ext/util/AccountIdentifier";
 
 import C4 "mo:c4";
 import Tarot "./types/tarot";
-import Cards "./cards";
+import TarotData "./data/tarot";
 
 
 ////////////////////////////
@@ -214,7 +214,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         };
 
         {
-            card = Cards.Cards[index];
+            card = TarotData.Cards[index];
             reversed = do {
                 switch (randomness.byte()) {
                     case null { throw Error.reject("Randomness failure"); };
@@ -250,12 +250,13 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         let path = Iter.toArray(Text.tokens(request.url, #text("/")));
         Debug.print("Handle HTTP: " # request.url);
 
-        if (path[0] == "card-art") return _handleCardRequest(path[1]);
+        if (path[0] == "card-art") return _handleCardAssetRequest(path[1]);
+        if (path[0] == "card-info") return _handleCardInfoRequest(path[1]);
 
         return NOT_FOUND;
     };
 
-    private func _handleCardRequest(path : Text) : DlNftHttp.Response {
+    private func _handleCardAssetRequest(path : Text) : DlNftHttp.Response {
         var cache = "0";  // No cache
         if (LOCKED) { cache := "86400" };  // Cache one day
         for (i in Iter.range(0, 79)) {
@@ -273,6 +274,22 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
                             streaming_strategy = null;
                         };
                     };
+                };
+            };
+        };
+        return NOT_FOUND;
+    };
+
+    private func _handleCardInfoRequest(path : Text) : DlNftHttp.Response {
+        for (i in Iter.range(0, 79)) {
+            if (Int.toText(i) == path) {
+                return {
+                    body = TarotData.Cards[i];
+                    headers = [
+                        ("Cache-Control", "max-age=3154000000"),  // Cache 100 years
+                    ];
+                    status_code = 200;
+                    streaming_strategy = null;
                 };
             };
         };

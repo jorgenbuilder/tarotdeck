@@ -6,6 +6,10 @@ module {
         artists : [Text];
     };
 
+    public type DeckCanConfig = {
+        allowAnonymousDraws : Bool;
+    };
+
     public type Suit = { #trump; #wands; #pentacles; #swords; #cups; };
 
     public type Card = {
