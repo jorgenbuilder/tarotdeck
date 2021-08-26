@@ -42,6 +42,7 @@ import DlNft "mo:dl-nft/main";
 import DlNftTypes "mo:dl-nft/types";
 import DlNftHttp "mo:dl-nft/httpTypes";
 import ExtCore "mo:ext/Core";
+import ExtCommon "mo:ext/Common";
 import ExtNonFungible "mo:ext/NonFungible";
 import ExtAccountId "mo:ext/util/AccountIdentifier";
 
@@ -63,7 +64,10 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
 
     // These are the EXT standard extensions that we're trying to adhere to. The goal is to be listable in NFT marketplaces.
-    let EXTENSIONS = ["@ext/core, @ext/non-fungible"];
+    let EXTENSIONS = ["@ext/core, @ext/non-fungible", "@ext/common"];
+    private stable let EXTMETADATA : ExtCommon.Metadata = #nonfungible({
+        metadata = null;
+    }); 
 
     stable var INITIALIZED : Bool = false;
     stable var METADATA : Tarot.DeckCanMeta = {
@@ -108,7 +112,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
     // Return basic information describing this canister and the deck that it represents.
-    public shared query func metadata () : async Tarot.DeckCanMeta {
+    public shared query func deckmetadata () : async Tarot.DeckCanMeta {
         METADATA;
     };
 
@@ -183,6 +187,16 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
         LEDGER.put(token, recipient);
         NEXT_ID := NEXT_ID + 1;
+    };
+
+    // Ext standard: metadata
+    public shared query func metadata (token : ExtCore.TokenIdentifier) : async Result.Result<ExtCommon.Metadata, ExtCore.CommonError> {
+        return #ok(EXTMETADATA);
+    };
+
+    // Ext standard: Supply
+    public query func supply(token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.Balance, ExtCore.CommonError> {
+        #ok(Iter.size(LEDGER.entries()));
     };
 
 
