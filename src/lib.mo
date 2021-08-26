@@ -45,8 +45,8 @@ import ExtCore "mo:ext/Core";
 import ExtNonFungible "mo:ext/NonFungible";
 import ExtAccountId "mo:ext/util/AccountIdentifier";
 
-import C4 "mo:c4";
 import Tarot "./types/tarot";
+import Http "./types/http";
 import TarotData "./data/tarot";
 
 
@@ -204,24 +204,29 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     /////////////////
 
 
-    public shared func randomizedCard () : async Tarot.RandomizedCard {
+    public shared func randomzedCard () : async { #ok : Tarot.RandomizedCard; #error : Text; } {
         let randomness = Random.Finite(await Random.blob());
+        _randomizedCard(randomness)
+    };
+    
+
+    private func _randomizedCard (randomness : Random.Finite) : { #ok : Tarot.RandomizedCard; #error : Text; } {
         let index = do {
             switch (randomness.byte()) {
-                case null { throw Error.reject("Randomness failure"); };
+                case null { return #error("Randomness failure") };
                 case (?seed) { Int.abs(Float.toInt(Float.fromInt(Nat8.toNat(seed)) / 255.0 * 100.0)); };
             };
         };
 
-        {
+        return #ok({
             card = TarotData.Cards[index];
             reversed = do {
                 switch (randomness.byte()) {
-                    case null { throw Error.reject("Randomness failure"); };
+                    case null { return #error("Randomness failure") };
                     case (?seed) { Nat8.toNat(seed) > Int.abs(Float.toInt(0.66 * 255.0)); };
                 };
             };
-        };
+        });
     };
 
     // Get a whole deck with each card in a random position
@@ -236,29 +241,39 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     //////////////////
 
 
-    // TODO: Play with long lived caching (only when in production mode)
-
-    let NOT_FOUND : DlNftHttp.Response = {status_code = 404; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
-    let BAD_REQUEST : DlNftHttp.Response = {status_code = 400; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
-    let UNAUTHORIZED : DlNftHttp.Response = {status_code = 401; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
-
     public query func asset (index : Nat) : async ?DlNftTypes.StaticAsset {
         ASSETS[index];
     };
 
-    public query func http_request(request : DlNftHttp.Request) : async DlNftHttp.Response {
-        let path = Iter.toArray(Text.tokens(request.url, #text("/")));
-        Debug.print("Handle HTTP: " # request.url);
+    public query func cardInfo (index : Nat) : async ?Tarot.Card {
+        ?TarotData.Cards[index];
+    };
 
-        if (path[0] == "card-art") return _handleCardAssetRequest(path[1]);
-        if (path[0] == "card-info") return _handleCardInfoRequest(path[1]);
+
+    ///////////
+    // HTTP //
+    /////////
+
+
+    let NOT_FOUND : Http.Response = { status_code = 404; headers = []; body = Blob.fromArray([]); };
+    let BAD_REQUEST : Http.Response = { status_code = 400; headers = []; body = Blob.fromArray([]); };
+    let UNAUTHORIZED : Http.Response = { status_code = 401; headers = []; body = Blob.fromArray([]); };
+
+    public query func http_request(request : DlNftHttp.Request) : async Http.Response {
+        Debug.print("Handle HTTP: " # request.url);
+        
+        let path = Iter.toArray(Text.tokens(request.url, #text("/")));
+
+        if (path[0] == "card-art") return httpCardAsset(path[1]);
+        if (path[0] == "card-info") return httpCardInfo(path[1]);
 
         return NOT_FOUND;
     };
 
-    private func _handleCardAssetRequest(path : Text) : DlNftHttp.Response {
+    private func httpCardAsset(path : Text) : Http.Response {
         var cache = "0";  // No cache
         if (LOCKED) { cache := "86400" };  // Cache one day
+
         for (i in Iter.range(0, 79)) {
             if (Int.toText(i) == path) {
                 switch(ASSETS[i]) {
@@ -271,7 +286,6 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
                                 ("Cache-Control", "max-age=" # cache),
                             ];
                             status_code = 200;
-                            streaming_strategy = null;
                         };
                     };
                 };
@@ -280,20 +294,41 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         return NOT_FOUND;
     };
 
-    private func _handleCardInfoRequest(path : Text) : DlNftHttp.Response {
+    private func httpCardInfo(path : Text) : Http.Response {
+        var cache = "0";  // No cache
+        if (LOCKED) { cache := "3154000000" };  // Cache 100 years
+
         for (i in Iter.range(0, 79)) {
             if (Int.toText(i) == path) {
+                let resp : Text = serializeCard(TarotData.Cards[i]);
+                Debug.print(resp);
+
                 return {
-                    body = TarotData.Cards[i];
+                    body = Text.encodeUtf8(resp);
                     headers = [
-                        ("Cache-Control", "max-age=3154000000"),  // Cache 100 years
+                        ("Content-Type", "text/json"),
+                        ("Cache-Control", "max-age=" # cache),  
                     ];
                     status_code = 200;
-                    streaming_strategy = null;
                 };
             };
         };
         return NOT_FOUND;
+    };
+
+    private func serializeCard (card : Tarot.Card) : Text {
+        "{" #
+            "\"name\": \"" # card.name # "\", " #
+            "\"number\": \"" # Nat.toText(card.number) # "\", " #
+            "\"suit\": \"" # (switch (card.suit) {
+                case (#trump) "trump";
+                case (#wands) "wands";
+                case (#pentacles) "pentacles";
+                case (#cups) "cups";
+                case (#swords) "swords";
+            }) # "\", " #
+            "\"index\": \"" # Nat.toText(card.index) # "\"" #
+        "}"
     };
 
 
@@ -361,26 +396,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         LOCKED := not LOCKED;
         LOCKED;
     };
-
-
-    ////////////////////
-    // Shared Cycles //
-    //////////////////
-
-
-    /* It's nice to be able to send, receive and query cycles.
-     */
-    public shared func c4Query() : async Nat {
-        await C4.available();
-    };
-    public shared func c4Donate() : async Nat {
-        Debug.print(Nat.toText(Cycles.available()));
-        await C4.accept();
-    };
-    public shared ({ caller }) func c4Withdraw(amount : Nat) : async Nat {
-        assert _isOwner(caller);
-        await C4.send(amount);
-    };
+    
 
     /////////////////////////
     // Contract Internals //
