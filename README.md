@@ -84,6 +84,18 @@ for file in ./art/*; dfx canister call tarotdeck assetAdmin "(record {\
 })"
 ```
 
+Mint yourself a deck:
+
+```zsh
+dfx canister call tarotdeck mint "(record { \"to\" = variant { \"address\" = \"$(dfx ledger account-id)\" }})"
+```
+
+Read the ledger:
+
+```zsh
+dfx canister call tarotdeck readLedger
+```
+
 
 ## Roadmap
 

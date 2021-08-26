@@ -396,6 +396,11 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         LOCKED := not LOCKED;
         LOCKED;
     };
+
+    public shared ({ caller }) func readLedger () : async [(ExtCore.TokenIndex, ExtCore.AccountIdentifier)] {
+        assert _isOwner(caller);
+        Iter.toArray(LEDGER.entries());
+    };
     
 
     /////////////////////////
