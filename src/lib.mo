@@ -65,8 +65,19 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     // These are the EXT standard extensions that we're trying to adhere to. The goal is to be listable in NFT marketplaces.
     let EXTENSIONS = ["@ext/core, @ext/non-fungible", "@ext/common"];
-    private stable let EXTMETADATA : ExtCommon.Metadata = #nonfungible({
-        metadata = null;
+    public type Metadata = {
+        #fungible : {
+            name : Text;
+            symbol : Text;
+            decimals : Nat8;
+            metadata : ?[Blob];
+        };
+        #nonfungible : {
+            metadata : ?[Blob];
+        };
+    };
+    private stable let EXTMETADATA : Metadata = #nonfungible({
+        metadata = ?[Blob.fromArray([])];
     }); 
 
     stable var INITIALIZED : Bool = false;
@@ -190,7 +201,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
     // Ext standard: metadata
-    public shared query func metadata (token : ExtCore.TokenIdentifier) : async Result.Result<ExtCommon.Metadata, ExtCore.CommonError> {
+    public shared query func metadata (token : ExtCore.TokenIdentifier) : async Result.Result<Metadata, ExtCore.CommonError> {
         return #ok(EXTMETADATA);
     };
 
