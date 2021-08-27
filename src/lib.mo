@@ -287,6 +287,11 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     public query func http_request(request : DlNftHttp.Request) : async Http.Response {
         Debug.print("Handle HTTP: " # request.url);
         
+        if (Text.contains(request.url, #text("?tokenid"))) {
+            // EXT preview
+            return httpCardAsset("0");
+        };
+
         let path = Iter.toArray(Text.tokens(request.url, #text("/")));
 
         if (path[0] == "card-art") return httpCardAsset(path[1]);
