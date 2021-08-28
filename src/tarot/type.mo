@@ -1,4 +1,9 @@
-module {
+import Nat "mo:base/Nat";
+import Text "mo:base/Text";
+
+
+module TarotTypes {
+
     public type DeckCanMeta = {
         name : Text;
         symbol : Text;
@@ -26,4 +31,4 @@ module {
 
     public type RandomizedDeck = [RandomizedCard];
 
-}
+};

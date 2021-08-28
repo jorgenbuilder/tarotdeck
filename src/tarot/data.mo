@@ -1,7 +1,9 @@
-import Tarot "../types/tarot";
+import Types "./type";
 
-module {
-    public let Cards : [Tarot.Card] = [
+
+module TarotData {
+
+    public let Cards : [Types.Card] = [
         { index = 0;    number = 0;     suit = #trump;      name = "The Fool"; },
         { index = 1;    number = 1;     suit = #trump;      name = "The Magician"; },
         { index = 2;    number = 2;     suit = #trump;      name = "The High Priestess"; },
@@ -84,4 +86,5 @@ module {
         { index = 78;   number = 1;     suit = #trump;      name = "Card Back"; },
         { index = 79;   number = 1;     suit = #trump;      name = "Card Back Alternate"; },
     ];
-}
+
+};
