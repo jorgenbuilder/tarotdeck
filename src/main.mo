@@ -1,26 +1,3 @@
-/*
- *    _____                      ____            __      ______            _      __           
- *   / ___/____ _____ _____ _   / __ \___  _____/ /__   / ____/___ _____  (_)____/ /____  _____
- *   \__ \/ __ `/ __ `/ __ `/  / / / / _ \/ ___/ //_/  / /   / __ `/ __ \/ / ___/ __/ _ \/ ___/
- *  ___/ / /_/ / /_/ / /_/ /  / /_/ /  __/ /__/ ,<    / /___/ /_/ / / / / (__  ) /_/  __/ /    
- * /____/\__,_/\__, /\__,_/  /_____/\___/\___/_/|_|   \____/\__,_/_/ /_/_/____/\__/\___/_/     
- *            /____/                                                                           
- * 
- * Version: BETADECK
- *
- * • Each deck canister represents a class of Tarot deck (ex: R.W.S., each unique hackathon deck, etc.).
- * • Provides NFT functionality that allows users to express ownership of their decks (one can tracks all user ownerships of the deck it represents.)
- *  • Uses the EXT token standard, because we want to interoperate with Toniq's services.
- *  • Uses a bunch of useful things from the Departure Labs NFT, too.
- * • Stores and serves the deck's unique image assets that make up a Tarot deck.
- * • Provides adminstrative functionality for the intial setup of a deck (provisioning your beautiful deck art!)
- * • Performs random card draws.
- * • TODO: Provides a basic frontend that allows you to use your deck to do Tarot.
- * • TODO: Provides a frontend that allows you to perform initial administrative setup.
- * • TODO: Provides an interface to allow minting decks in unlimited or limited runs.
- */
-
-
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Cycles "mo:base/ExperimentalCycles";
