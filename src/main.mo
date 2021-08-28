@@ -27,8 +27,9 @@ import ExtAccountId "mo:ext/util/AccountIdentifier";
 import Http "./Http";
 import Ledger "./Ledger";
 import LedgerTypes "./Ledger/types";
-import Tarot "./types/tarot";
-import TarotData "./data/tarot";
+import Tarot "./Tarot";
+import TarotTypes "./Tarot/types";
+import TarotData "./Tarot/data";
 
 
 shared ({ caller = creator }) actor class BetaDeck() = canister {
@@ -41,7 +42,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     // Admin and metadata
 
     stable var INITIALIZED : Bool = false;
-    stable var METADATA : Tarot.DeckCanMeta = {
+    stable var METADATA : TarotTypes.DeckCanMeta = {
         name = "Uninitialized";
         symbol = "🥚";
         description = "";
@@ -80,7 +81,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
 
     // A canister must be initialized with its owners and initial data before it can be used.
-    public shared ({caller}) func init (owners : [Principal], metadata : Tarot.DeckCanMeta) : async ([Principal], Tarot.DeckCanMeta) {
+    public shared ({caller}) func init (owners : [Principal], metadata : TarotTypes.DeckCanMeta) : async ([Principal], TarotTypes.DeckCanMeta) {
         assert not INITIALIZED and caller == OWNERS[0];
         OWNERS := Array.append(OWNERS, owners);
         METADATA := metadata;
@@ -89,7 +90,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
     // Return basic information describing this canister and the deck that it represents.
-    public shared query func deckmetadata () : async Tarot.DeckCanMeta {
+    public shared query func deckmetadata () : async TarotTypes.DeckCanMeta {
         METADATA;
     };
 
@@ -131,36 +132,15 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     // Tarot deck
 
 
-    public shared func randomzedCard () : async { #ok : Tarot.RandomizedCard; #error : Text; } {
-        let randomness = Random.Finite(await Random.blob());
-        _randomizedCard(randomness)
-    };
-    
+    let tarot = Tarot.Tarot({});
 
-    private func _randomizedCard (randomness : Random.Finite) : { #ok : Tarot.RandomizedCard; #error : Text; } {
-        let index = do {
-            switch (randomness.byte()) {
-                case null { return #error("Randomness failure") };
-                case (?seed) { Int.abs(Float.toInt(Float.fromInt(Nat8.toNat(seed)) / 255.0 * 100.0)); };
-            };
-        };
-
-        return #ok({
-            card = TarotData.Cards[index];
-            reversed = do {
-                switch (randomness.byte()) {
-                    case null { return #error("Randomness failure") };
-                    case (?seed) { Nat8.toNat(seed) > Int.abs(Float.toInt(0.66 * 255.0)); };
-                };
-            };
-        });
+    public shared func randomizedCard () : async { #ok : TarotTypes.RandomizedCard; #error : Text; } {
+        await tarot.randomizedCard();
     };
 
-    // Get a whole deck with each card in a random position
-    // Returns a list of 78 randomized cards, where each card is only represented once
-    // public shared query func randomizedDeck () : async Tarot.RandomizedDeck {
-    //     // TODO
-    // };
+    public query func cardInfo (index : Nat) : async ?TarotTypes.Card {
+        tarot.cardInfo(index);
+    };
 
 
     // Assets
@@ -168,10 +148,6 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     public query func asset (index : Nat) : async ?DlStatic.Asset {
         ASSETS[index];
-    };
-
-    public query func cardInfo (index : Nat) : async ?Tarot.Card {
-        ?TarotData.Cards[index];
     };
 
 

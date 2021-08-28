@@ -6,8 +6,8 @@ import Text "mo:base/Text";
 
 import DlHttp "mo:dl-nft/http";
 
-import Tarot "../types/tarot";
-import TarotData "../data/tarot";
+import Tarot "../Tarot/types";
+import TarotData "../Tarot/data";
 
 import Types "./types";
 

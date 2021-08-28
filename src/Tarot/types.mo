@@ -1,4 +1,7 @@
 module {
+
+    public type State = {};
+
     public type DeckCanMeta = {
         name : Text;
         symbol : Text;
@@ -26,4 +29,4 @@ module {
 
     public type RandomizedDeck = [RandomizedCard];
 
-}
+};
