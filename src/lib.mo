@@ -1,26 +1,3 @@
-/*
- *    _____                      ____            __      ______            _      __           
- *   / ___/____ _____ _____ _   / __ \___  _____/ /__   / ____/___ _____  (_)____/ /____  _____
- *   \__ \/ __ `/ __ `/ __ `/  / / / / _ \/ ___/ //_/  / /   / __ `/ __ \/ / ___/ __/ _ \/ ___/
- *  ___/ / /_/ / /_/ / /_/ /  / /_/ /  __/ /__/ ,<    / /___/ /_/ / / / / (__  ) /_/  __/ /    
- * /____/\__,_/\__, /\__,_/  /_____/\___/\___/_/|_|   \____/\__,_/_/ /_/_/____/\__/\___/_/     
- *            /____/                                                                           
- * 
- * Version: BETADECK
- *
- * • Each deck canister represents a class of Tarot deck (ex: R.W.S., each unique hackathon deck, etc.).
- * • Provides NFT functionality that allows users to express ownership of their decks (one can tracks all user ownerships of the deck it represents.)
- *  • Uses the EXT token standard, because we want to interoperate with Toniq's services.
- *  • Uses a bunch of useful things from the Departure Labs NFT, too.
- * • Stores and serves the deck's unique image assets that make up a Tarot deck.
- * • Provides adminstrative functionality for the intial setup of a deck (provisioning your beautiful deck art!)
- * • Performs random card draws.
- * • TODO: Provides a basic frontend that allows you to use your deck to do Tarot.
- * • TODO: Provides a frontend that allows you to perform initial administrative setup.
- * • TODO: Provides an interface to allow minting decks in unlimited or limited runs.
- */
-
-
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Cycles "mo:base/ExperimentalCycles";
@@ -47,39 +24,21 @@ import ExtCommon "mo:ext/Common";
 import ExtNonFungible "mo:ext/NonFungible";
 import ExtAccountId "mo:ext/util/AccountIdentifier";
 
+import Http "./Http";
+import Ledger "./Ledger";
+import LedgerTypes "./Ledger/types";
 import Tarot "./types/tarot";
-import Http "./http";
 import TarotData "./data/tarot";
 
-
-////////////////////////////
-// BETADECK CONTRACT 📜 //
-/////////////////////////
 
 shared ({ caller = creator }) actor class BetaDeck() = canister {
 
 
-    /////////////////////
-    // Internal State //
-    ///////////////////
+    ////////////
+    // State //
+    //////////
 
-
-    // These are the EXT standard extensions that we're trying to adhere to. The goal is to be listable in NFT marketplaces.
-    let EXTENSIONS = ["@ext/core, @ext/non-fungible", "@ext/common"];
-    public type Metadata = {
-        #fungible : {
-            name : Text;
-            symbol : Text;
-            decimals : Nat8;
-            metadata : ?[Blob];
-        };
-        #nonfungible : {
-            metadata : ?[Blob];
-        };
-    };
-    private stable let EXTMETADATA : Metadata = #nonfungible({
-        metadata = ?[Blob.fromArray([])];
-    }); 
+    // Admin and metadata
 
     stable var INITIALIZED : Bool = false;
     stable var METADATA : Tarot.DeckCanMeta = {
@@ -91,29 +50,33 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     stable var OWNERS : [Principal] = [creator];
     stable var LOCKED : Bool = false;
 
-    // We store the next token ID, which just keeps iterating forward
-    stable var NEXT_ID : ExtCore.TokenIndex = 0;
+    // Ledger
 
-    // The ledger of NFT ownerships for this deck. We key off EXT token indexes because that makes it simple to adhere to the standard.
-    stable var stableLedger : [(ExtCore.TokenIndex, ExtCore.AccountIdentifier)] = [];
-    var LEDGER : HashMap.HashMap<ExtCore.TokenIndex, ExtCore.AccountIdentifier> = HashMap.fromIter(stableLedger.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+    stable var nextTokenId : ExtCore.TokenIndex = 0;
+    stable var ledgerEntries : [(ExtCore.TokenIndex, ExtCore.AccountIdentifier)] = [];
+    let ledger = Ledger.Ledger({ nextTokenId; ledgerEntries; });
+
+    // Art assets
 
     stable let ASSETS : [var ?DlStatic.Asset] = Array.init<?DlStatic.Asset>(80, null);
 
     stable let PREVIEW_ASSET : ?DlStatic.Asset = null;
 
+    // Upgrades
+
     system func preupgrade() {
-        stableLedger := Iter.toArray(LEDGER.entries());
+        nextTokenId := ledger.nextTokenId;
+        ledgerEntries := ledger.entries();
     };
 
     system func postupgrade() {
-        stableLedger := [];
+        ledgerEntries := [];
     };
 
 
-    ///////////////////////
-    // Public Interface //
-    /////////////////////
+    //////////
+    // API //
+    ////////
 
 
     // A canister must be initialized with its owners and initial data before it can be used.
@@ -131,116 +94,41 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
 
-    /////////////////
-    // Shared EXT //
-    ///////////////
+    // Ledger
 
 
-    // Ext standard: list available extensions
-    public shared query func extensions () : async [ExtCore.Extension] {
-        EXTENSIONS;
+    public query func balance (request : ExtCore.BalanceRequest) : async ExtCore.BalanceResponse {
+        ledger.balance(request, Principal.fromActor(canister));
     };
 
-    // Ext standard: get balance
-    public shared query func balance (request : ExtCore.BalanceRequest) : async ExtCore.BalanceResponse {
-        if (not ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(canister))) {
-            return #err(#InvalidToken(request.token));
-        };
-        let token = ExtCore.TokenIdentifier.getIndex(request.token);
-        let aid = ExtCore.User.toAID(request.user);
-        switch (LEDGER.get(token)) {
-            case (?owner) {
-                if (ExtAccountId.equal(aid, owner)) return #ok(1);
-                return #ok(0);
-            };
-            case Null #err(#InvalidToken(request.token));
-        };
-    };
-
-    // Ext standard: transfer owner
     public shared ({ caller }) func transfer (request : ExtCore.TransferRequest) : async ExtCore.TransferResponse {
-        if (request.amount != 1) {
-            return #err(#Other("Only logical transfer amount for an NFT is 1, got" # Nat.toText(request.amount) # "."));
-        };
-        if (not ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(canister))) {
-            return #err(#InvalidToken(request.token));
-        };
-        let token = ExtCore.TokenIdentifier.getIndex(request.token);
-        let owner = ExtCore.User.toAID(request.from);
-        let agent = ExtAccountId.fromPrincipal(caller, request.subaccount);
-        let recipient = ExtCore.User.toAID(request.to);
-        switch (LEDGER.get(token)) {
-            case (?tokenOwner) {
-                if (ExtAccountId.equal(owner, tokenOwner) and ExtAccountId.equal(owner, agent)) {
-                    LEDGER.put(token, recipient);
-                    return #ok(request.amount);
-                };
-                #err(#Unauthorized(owner));
-            };
-            case Null return #err(#InvalidToken(request.token));
-        };
+        ledger.transfer(request, caller, Principal.fromActor(canister));
     };
 
-    // Ext standard: get bearer of token
-    public shared query func bearer (token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.AccountIdentifier, ExtCore.CommonError> {
-        if (not ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(canister))) {
-            return #err(#InvalidToken(token));
-        };
-        let i = ExtCore.TokenIdentifier.getIndex(token);
-        switch (LEDGER.get(i)) {
-            case (?owner) #ok(owner);
-            case Null #err(#InvalidToken(token));
-        };
+    public query func bearer (token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.AccountIdentifier, ExtCore.CommonError> {
+        ledger.bearer(token, Principal.fromActor(canister));
     };
 
-    // Ext standard: mint an NFT
     public shared ({ caller }) func mint (request : ExtNonFungible.MintRequest) : async () {
         assert _isOwner(caller);
-        let recipient = ExtCore.User.toAID(request.to);
-        let token = NEXT_ID;
-
-        LEDGER.put(token, recipient);
-        NEXT_ID := NEXT_ID + 1;
+        ledger.mint(request);
     };
 
-    // Ext standard: metadata
-    public shared query func metadata (token : ExtCore.TokenIdentifier) : async Result.Result<Metadata, ExtCore.CommonError> {
-        return #ok(EXTMETADATA);
+    public query func metadata (token : ExtCore.TokenIdentifier) : async Result.Result<LedgerTypes.ExtMetadata, ExtCore.CommonError> {
+        ledger.metadata(token);
     };
 
-    // Ext standard: Supply
     public query func supply(token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.Balance, ExtCore.CommonError> {
-        #ok(Iter.size(LEDGER.entries()));
+        ledger.supply(token);
     };
 
-    // Ext standard: sale details
-    // This isn't actually part of the EXT standard, but it does you to sell things on Entrepot?
-    // public type ExtSaleDetails {
-    //     locked: ?Int;
-    //     seller: Principal;
-    //     price: Nat64;
-    // };
-    // public query func details(token : ExtCore.TokenIdentifier) : async Result.Result<ExtSaleDetails, ExtCore.CommonError> {
-
-    // };
+    public shared ({ caller }) func readLedger () : async [(ExtCore.TokenIndex, ExtCore.AccountIdentifier)] {
+        assert _isOwner(caller);
+        ledger.entries();
+    };
 
 
-    /////////////////
-    // Shared NFT //
-    ///////////////
-
-
-    public shared query func nftOfOwner () : async () {};
-    public shared query func ownerOfNft () : async () {};
-
-
-    // NFT things (Departure)
-    // There are some really handy things here, maybe we can plug these into EXT in the future.
-
-
-    ///////////////////
-    // Shared Tarot //
-    /////////////////
+    // Tarot deck
 
 
     public shared func randomzedCard () : async { #ok : Tarot.RandomizedCard; #error : Text; } {
@@ -275,9 +163,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     // };
 
 
-    ////////////////////
-    // Shared Assets //
-    //////////////////
+    // Assets
 
 
     public query func asset (index : Nat) : async ?DlStatic.Asset {
@@ -289,9 +175,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
 
-    ///////////
-    // HTTP //
-    /////////
+    // HTTP
 
 
     let httpHandler = Http.HttpHandler({ locked = LOCKED; assets = Array.freeze(ASSETS); });
@@ -301,9 +185,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     };
 
 
-    ///////////////////
-    // Shared Admin //
-    /////////////////
+    // Admin
 
 
     type UpdateOwnerRequest = {
@@ -365,18 +247,12 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         LOCKED := not LOCKED;
         LOCKED;
     };
-
-    public shared ({ caller }) func readLedger () : async [(ExtCore.TokenIndex, ExtCore.AccountIdentifier)] {
-        assert _isOwner(caller);
-        Iter.toArray(LEDGER.entries());
-    };
     
 
-    /////////////////////////
-    // Contract Internals //
-    ///////////////////////
-
-    // Access Control
+    ////////////////
+    // Internals //
+    //////////////
+    
 
     func _isOwner(principal : Principal) : Bool {
         switch(Array.find<Principal>(OWNERS, func (v) { v == principal })) {
