@@ -99,6 +99,8 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     stable let ASSETS : [var ?DlNftTypes.StaticAsset] = Array.init<?DlNftTypes.StaticAsset>(80, null);
 
+    stable let PREVIEW_ASSET : ?DlNftTypes.StaticAsset = null;
+
     system func preupgrade() {
         stableLedger := Iter.toArray(LEDGER.entries());
     };
@@ -209,6 +211,17 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     public query func supply(token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.Balance, ExtCore.CommonError> {
         #ok(Iter.size(LEDGER.entries()));
     };
+
+    // Ext standard: sale details
+    // This isn't actually part of the EXT standard, but it does you to sell things on Entrepot?
+    // public type ExtSaleDetails {
+    //     locked: ?Int;
+    //     seller: Principal;
+    //     price: Nat64;
+    // };
+    // public query func details(token : ExtCore.TokenIdentifier) : async Result.Result<ExtSaleDetails, ExtCore.CommonError> {
+
+    // };
 
 
     /////////////////
