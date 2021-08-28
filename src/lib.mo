@@ -39,15 +39,16 @@ import Option "mo:base/Option";
 import Text "mo:base/Text";
 
 import DlNft "mo:dl-nft/main";
+import DlStatic "mo:dl-nft/static";
 import DlNftTypes "mo:dl-nft/types";
-import DlNftHttp "mo:dl-nft/httpTypes";
+import DlHttp "mo:dl-nft/http";
 import ExtCore "mo:ext/Core";
 import ExtCommon "mo:ext/Common";
 import ExtNonFungible "mo:ext/NonFungible";
 import ExtAccountId "mo:ext/util/AccountIdentifier";
 
 import Tarot "./types/tarot";
-import Http "./types/http";
+import Http "./http";
 import TarotData "./data/tarot";
 
 
@@ -97,9 +98,9 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     stable var stableLedger : [(ExtCore.TokenIndex, ExtCore.AccountIdentifier)] = [];
     var LEDGER : HashMap.HashMap<ExtCore.TokenIndex, ExtCore.AccountIdentifier> = HashMap.fromIter(stableLedger.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
 
-    stable let ASSETS : [var ?DlNftTypes.StaticAsset] = Array.init<?DlNftTypes.StaticAsset>(80, null);
+    stable let ASSETS : [var ?DlStatic.Asset] = Array.init<?DlStatic.Asset>(80, null);
 
-    stable let PREVIEW_ASSET : ?DlNftTypes.StaticAsset = null;
+    stable let PREVIEW_ASSET : ?DlStatic.Asset = null;
 
     system func preupgrade() {
         stableLedger := Iter.toArray(LEDGER.entries());
@@ -279,7 +280,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     //////////////////
 
 
-    public query func asset (index : Nat) : async ?DlNftTypes.StaticAsset {
+    public query func asset (index : Nat) : async ?DlStatic.Asset {
         ASSETS[index];
     };
 
@@ -293,85 +294,10 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     /////////
 
 
-    let NOT_FOUND : Http.Response = { status_code = 404; headers = []; body = Blob.fromArray([]); };
-    let BAD_REQUEST : Http.Response = { status_code = 400; headers = []; body = Blob.fromArray([]); };
-    let UNAUTHORIZED : Http.Response = { status_code = 401; headers = []; body = Blob.fromArray([]); };
+    let httpHandler = Http.HttpHandler({ locked = LOCKED; assets = Array.freeze(ASSETS); });
 
-    public query func http_request(request : DlNftHttp.Request) : async Http.Response {
-        Debug.print("Handle HTTP: " # request.url);
-        
-        if (Text.contains(request.url, #text("?tokenid"))) {
-            // EXT preview
-            return httpCardAsset("0");
-        };
-
-        let path = Iter.toArray(Text.tokens(request.url, #text("/")));
-
-        if (path[0] == "card-art") return httpCardAsset(path[1]);
-        if (path[0] == "card-info") return httpCardInfo(path[1]);
-
-        return NOT_FOUND;
-    };
-
-    private func httpCardAsset(path : Text) : Http.Response {
-        var cache = "0";  // No cache
-        if (LOCKED) { cache := "86400" };  // Cache one day
-
-        for (i in Iter.range(0, 79)) {
-            if (Int.toText(i) == path) {
-                switch(ASSETS[i]) {
-                    case null return NOT_FOUND;
-                    case (?asset) {
-                        return {
-                            body = asset.payload[0];
-                            headers = [
-                                ("Content-Type", asset.contentType),
-                                ("Cache-Control", "max-age=" # cache),
-                            ];
-                            status_code = 200;
-                        };
-                    };
-                };
-            };
-        };
-        return NOT_FOUND;
-    };
-
-    private func httpCardInfo(path : Text) : Http.Response {
-        var cache = "0";  // No cache
-        if (LOCKED) { cache := "3154000000" };  // Cache 100 years
-
-        for (i in Iter.range(0, 79)) {
-            if (Int.toText(i) == path) {
-                let resp : Text = serializeCard(TarotData.Cards[i]);
-                Debug.print(resp);
-
-                return {
-                    body = Text.encodeUtf8(resp);
-                    headers = [
-                        ("Content-Type", "text/json"),
-                        ("Cache-Control", "max-age=" # cache),  
-                    ];
-                    status_code = 200;
-                };
-            };
-        };
-        return NOT_FOUND;
-    };
-
-    private func serializeCard (card : Tarot.Card) : Text {
-        "{" #
-            "\"name\": \"" # card.name # "\", " #
-            "\"number\": \"" # Nat.toText(card.number) # "\", " #
-            "\"suit\": \"" # (switch (card.suit) {
-                case (#trump) "trump";
-                case (#wands) "wands";
-                case (#pentacles) "pentacles";
-                case (#cups) "cups";
-                case (#swords) "swords";
-            }) # "\", " #
-            "\"index\": \"" # Nat.toText(card.index) # "\"" #
-        "}"
+    public query func http_request(request : DlHttp.Request) : async DlHttp.Response {
+        httpHandler.request(request);
     };
 
 
@@ -407,7 +333,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     type AssetAdminRequest = {
         index : Nat;
-        asset : DlNftTypes.StaticAsset;
+        asset : DlStatic.Asset;
     };
 
     type AssetAdminResponse = Result.Result<(), ExtCore.CommonError>;
