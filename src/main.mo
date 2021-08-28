@@ -23,14 +23,13 @@ import ExtCommon "mo:ext/Common";
 import ExtNonFungible "mo:ext/NonFungible";
 import ExtAccountId "mo:ext/util/AccountIdentifier";
 
-import Can "./can";
+import CanMeta "./CanMeta";
+import CanMetaTypes "./CanMeta/type";
 
-import Tarot "./tarot";
-import TarotTypes "./tarot/type";
+import TarotDeck "./TarotDeck";
+import TarotDeckTypes "./TarotDeck/type";
 
 import Ledger "./ledger";
-
-import Types "./types";
 
 
 ////////////////////////////
@@ -38,7 +37,7 @@ import Types "./types";
 /////////////////////////
 
 
-shared ({ caller = creator }) actor class BetaDeck() = canister {
+shared ({ caller = creator }) actor class BetaDeck() = {
 
 
     ////////////
@@ -46,20 +45,41 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     //////////
 
     // Canister metadata and administration
-    let can = Can.Can();
+
+    stable var initialized = false;
+    stable var metadata : CanMetaTypes.Metadata = {
+        name = "Uninitialized";
+        symbol = "🥚";
+        description = "";
+        artists = [];
+    };
+    stable var owners : [Principal] = [];
+    stable var locked : Bool = false;
+
+    let meta = CanMeta.CanMeta({ initialized; metadata; owners; locked; });
 
     // Ledger
+    
     stable var ledgerItems : [(ExtCore.TokenIndex, ExtCore.AccountIdentifier)] = [];
+
     let ledger = Ledger.Ledger(ledgerItems);
 
     // Deck assets
+    
     stable let assets : [var ?DlStatic.Asset] = Array.init<?DlStatic.Asset>(80, null);
 
     // Tarot deck properties
-    let tarotDeck = Tarot.
+    
+    let tarotDeck = TarotDeck.TarotDeck();
 
     // Upgrades
+    
     system func preupgrade() {
+        initialized := meta.initialized;
+        metadata := meta.metadata;
+        owners := meta.owners;
+        locked := meta.locked;
+
         ledgerItems := Iter.toArray(LEDGER.entries());
     };
 
@@ -73,23 +93,23 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     ////////
 
 
-    // A canister must be initialized with its owners and initial data before it can be used.
-    public shared ({caller}) func init (owners : [Principal], metadata : TarotTypes.DeckCanMeta) : async ([Principal], TarotTypes.DeckCanMeta) {
-        
-    }
+    // Canister metadata and admin
+
+
+    public shared ({ caller }) func init (request : CanisterTypes.InitRequest) : async CanisterTypes.InitResponse {
+        assert _isOwner(caller);
+        await meta.init(request, caller);
+    };
     
 
-
-    /////////////
-    // Ledger //
-    ///////////
+    // Ledger
 
 
     public shared ({caller}) func balance (request : ExtNonFungible.BalanceRequest) : async ExtCore.BalanceResponse {
         await ledger.balance(request);
     };
     
-    public shared ({caller}) func bearer ((token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.AccountIdentifier, ExtCore.CommonError> {
+    public shared ({caller}) func bearer (token : ExtCore.TokenIdentifier) : async Result.Result<ExtCore.AccountIdentifier, ExtCore.CommonError> {
         await ledger.bearer(token);
     };
 

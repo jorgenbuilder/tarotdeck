@@ -1,6 +1,14 @@
+import HashMap "mo:base/Hashmap";
+
+import ExtCore "mo:ext/Core";
+
 module LedgerTypes {
 
-    public type Ledger = HashMap.HashMap<ExtCore.TokenIndex, ExtCore.AccountIdentifier> = HashMap.fromIter(ledgerItems.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+    public type State = {
+        
+    };
+
+    public type Ledger = HashMap.HashMap<ExtCore.TokenIndex, ExtCore.AccountIdentifier>;
 
     public type ExtMetadata = {
         #fungible : {

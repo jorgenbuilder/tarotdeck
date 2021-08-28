@@ -4,13 +4,6 @@ import Text "mo:base/Text";
 
 module TarotTypes {
 
-    public type DeckCanMeta = {
-        name : Text;
-        symbol : Text;
-        description : Text;
-        artists : [Text];
-    };
-
     public type DeckCanConfig = {
         allowAnonymousDraws : Bool;
     };
