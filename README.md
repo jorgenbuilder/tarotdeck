@@ -59,7 +59,6 @@ dfx canister call $(dfx identity get-wallet) wallet_call "(record {\
         record {\
             name = \"R.W.S.\";\
             description = \"A basic Rider Waite Smith deck.\";\
-            symbol = \"🃏\";\
             artists = vec {\
                 \"Pamela Coleman Smith\"\
             };\

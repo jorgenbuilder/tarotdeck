@@ -48,8 +48,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     // Art assets
 
     stable let assetEntries : [var ?DlStatic.Asset] = Array.init<?DlStatic.Asset>(80, null);
-
-    stable let PREVIEW_ASSET : ?DlStatic.Asset = null;
+    stable let PREVIEW_ASSET : ?DlStatic.Asset = null;  // Doesn't do anything yet
 
     // Upgrades
 
