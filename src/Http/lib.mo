@@ -38,7 +38,7 @@ module {
 
             for (i in Iter.range(0, 79)) {
                 if (Int.toText(i) == path) {
-                    switch(state.assets[i]) {
+                    switch(state.getCardArt(i)) {
                         case (null) return DlHttp.NOT_FOUND();
                         case (?asset) {
                             return {

@@ -166,7 +166,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     let assets = Assets.Assets({ assetEntries; locked; });
 
-    public query func asset (index : Nat) : async ?DlStatic.Asset {
+    public query func getCardArt (index : Nat) : async ?DlStatic.Asset {
         assets.getCardArt(index);
     };
 
@@ -188,7 +188,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     // HTTP
 
-    let httpHandler = Http.HttpHandler({ locked; assets = Array.freeze(assetEntries); });
+    let httpHandler = Http.HttpHandler({ locked; getCardArt = assets.getCardArt; });
 
     public query func http_request(request : DlHttp.Request) : async DlHttp.Response {
         httpHandler.request(request);
