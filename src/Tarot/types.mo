@@ -1,10 +1,11 @@
 module {
 
-    public type State = {};
+    public type State = {
+        deckmeta : Metadata;
+    };
 
-    public type DeckCanMeta = {
+    public type Metadata = {
         name : Text;
-        symbol : Text;
         description : Text;
         artists : [Text];
     };

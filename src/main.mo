@@ -24,6 +24,8 @@ import ExtCommon "mo:ext/Common";
 import ExtNonFungible "mo:ext/NonFungible";
 import ExtAccountId "mo:ext/util/AccountIdentifier";
 
+import Assets "./Assets";
+import AssetTypes "./Assets/types";
 import Http "./Http";
 import Ledger "./Ledger";
 import LedgerTypes "./Ledger/types";
@@ -39,17 +41,16 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     // State //
     //////////
 
+
     // Admin and metadata
 
-    stable var INITIALIZED : Bool = false;
-    stable var METADATA : TarotTypes.DeckCanMeta = {
-        name = "Uninitialized";
-        symbol = "🥚";
+    stable var initialized : Bool = false;
+    stable var deckmeta : TarotTypes.Metadata = { name = "Uninitialized";
         description = "";
         artists = [];
     };
-    stable var OWNERS : [Principal] = [creator];
-    stable var LOCKED : Bool = false;
+    stable var owners : [Principal] = [creator];
+    stable var locked : Bool = false;
 
     // Ledger
 
@@ -59,7 +60,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     // Art assets
 
-    stable let ASSETS : [var ?DlStatic.Asset] = Array.init<?DlStatic.Asset>(80, null);
+    stable let assetEntries : [var ?DlStatic.Asset] = Array.init<?DlStatic.Asset>(80, null);
 
     stable let PREVIEW_ASSET : ?DlStatic.Asset = null;
 
@@ -68,6 +69,8 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     system func preupgrade() {
         nextTokenId := ledger.nextTokenId;
         ledgerEntries := ledger.entries();
+        locked := assets.locked;
+        deckmeta := tarot.getDeckInfo();
     };
 
     system func postupgrade() {
@@ -80,23 +83,44 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     ////////
 
 
-    // A canister must be initialized with its owners and initial data before it can be used.
-    public shared ({caller}) func init (owners : [Principal], metadata : TarotTypes.DeckCanMeta) : async ([Principal], TarotTypes.DeckCanMeta) {
-        assert not INITIALIZED and caller == OWNERS[0];
-        OWNERS := Array.append(OWNERS, owners);
-        METADATA := metadata;
-        INITIALIZED := true;
-        (OWNERS, METADATA);
+    // Admin
+
+    type UpdateOwnerRequest = {
+        method : { #add; #remove; };
+        principal : Principal;
     };
 
-    // Return basic information describing this canister and the deck that it represents.
-    public shared query func deckmetadata () : async TarotTypes.DeckCanMeta {
-        METADATA;
+    type UpdateOwnerResponse = Result.Result<[Principal], ExtCore.CommonError>;
+
+    public shared ({ caller }) func updateOwners (request : UpdateOwnerRequest) : async UpdateOwnerResponse {
+        assert _isOwner(caller);
+        switch (request.method) {
+            case (#add) {
+                if (_isOwner(request.principal)) {
+                    #ok(owners);
+                } else {
+                    owners := Array.append(owners, [request.principal]);
+                    #ok(owners);
+                }
+            };
+            case (#remove) {
+                owners := Array.filter<Principal>(owners, func(v) {v != request.principal});
+                #ok(owners);
+            }
+        };
+    };
+
+    // A canister must be initialized with its owners and initial data before it can be used.
+    public shared ({caller}) func init (initOwners : [Principal], metadata : TarotTypes.Metadata) : async ([Principal], TarotTypes.Metadata) {
+        assert not initialized and caller == owners[0];
+        let meta = tarot.setDeckInfo(metadata);
+        owners := Array.append(owners, initOwners);
+        initialized := true;
+        (owners, meta);
     };
 
 
     // Ledger
-
 
     public query func balance (request : ExtCore.BalanceRequest) : async ExtCore.BalanceResponse {
         ledger.balance(request, Principal.fromActor(canister));
@@ -131,97 +155,56 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     // Tarot deck
 
+    let tarot = Tarot.Tarot({ deckmeta; });
 
-    let tarot = Tarot.Tarot({});
-
-    public shared func randomizedCard () : async { #ok : TarotTypes.RandomizedCard; #error : Text; } {
-        await tarot.randomizedCard();
+    public shared func getRandomizedCard () : async { #ok : TarotTypes.RandomizedCard; #error : Text; } {
+        await tarot.getRandomizedCard();
     };
 
-    public query func cardInfo (index : Nat) : async ?TarotTypes.Card {
-        tarot.cardInfo(index);
+    public query func getCardInfo (index : Nat) : async ?TarotTypes.Card {
+        tarot.getCardInfo(index);
+    };
+
+    public query func getDeckInfo () : async TarotTypes.Metadata {
+        tarot.getDeckInfo();
+    };
+
+    public shared ({ caller }) func setDeckInfo (metadata : TarotTypes.Metadata) : async TarotTypes.Metadata {
+        assert(_isOwner(caller));
+        tarot.setDeckInfo(metadata);
     };
 
 
     // Assets
 
+    let assets = Assets.Assets({ assetEntries; locked; });
 
     public query func asset (index : Nat) : async ?DlStatic.Asset {
-        ASSETS[index];
+        assets.getCardArt(index);
+    };
+
+    public shared ({ caller }) func assetAdmin (request : AssetTypes.AssetAdminRequest) : async AssetTypes.AssetAdminResponse {
+        assert _isOwner(caller);
+        assets.assetAdmin(request);
+    };
+
+    public shared ({ caller }) func assetCheck () : async Result.Result<(), [Nat]> {
+        assert _isOwner(caller);
+        assets.assetCheck();
+    };
+
+    public shared ({ caller }) func assetLock () : async Bool {
+        assert _isOwner(caller);
+        assets.assetLock();
     };
 
 
     // HTTP
 
-
-    let httpHandler = Http.HttpHandler({ locked = LOCKED; assets = Array.freeze(ASSETS); });
+    let httpHandler = Http.HttpHandler({ locked; assets = Array.freeze(assetEntries); });
 
     public query func http_request(request : DlHttp.Request) : async DlHttp.Response {
         httpHandler.request(request);
-    };
-
-
-    // Admin
-
-
-    type UpdateOwnerRequest = {
-        method : { #add; #remove; };
-        principal : Principal;
-    };
-
-    type UpdateOwnerResponse = Result.Result<[Principal], ExtCore.CommonError>;
-
-    public shared ({ caller }) func updateOwners (request : UpdateOwnerRequest) : async UpdateOwnerResponse {
-        assert _isOwner(caller);
-        switch (request.method) {
-            case (#add) {
-                if (_isOwner(request.principal)) {
-                    #ok(OWNERS);
-                } else {
-                    OWNERS := Array.append(OWNERS, [request.principal]);
-                    #ok(OWNERS);
-                }
-            };
-            case (#remove) {
-                OWNERS := Array.filter<Principal>(OWNERS, func(v) {v != request.principal});
-                #ok(OWNERS);
-            }
-        };
-    };
-
-    type AssetAdminRequest = {
-        index : Nat;
-        asset : DlStatic.Asset;
-    };
-
-    type AssetAdminResponse = Result.Result<(), ExtCore.CommonError>;
-
-    public shared ({ caller }) func assetAdmin (request : AssetAdminRequest) : async AssetAdminResponse {
-        assert _isOwner(caller);
-        assert LOCKED == false;
-        ASSETS[request.index] := ?request.asset;
-        #ok()
-    };
-
-    public shared ({ caller }) func assetCheck () : async Result.Result<(), [Nat]> {
-        assert _isOwner(caller);
-        var missingAssets : [Nat] = [];
-        for (i in Iter.range(0, 79)) {
-            if (Option.isNull(ASSETS[i])) {
-                missingAssets := Array.append(missingAssets, [i]);
-            };
-        };
-        if (Iter.size(Iter.fromArray(missingAssets)) == 0) {
-            return #ok();
-        } else {
-            return #err(missingAssets);
-        };
-    };
-
-    public shared ({ caller }) func assetLock () : async Bool {
-        assert _isOwner(caller);
-        LOCKED := not LOCKED;
-        LOCKED;
     };
     
 
@@ -231,7 +214,7 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     
 
     func _isOwner(principal : Principal) : Bool {
-        switch(Array.find<Principal>(OWNERS, func (v) { v == principal })) {
+        switch(Array.find<Principal>(owners, func (v) { v == principal })) {
             case (null) return false;
             case (?v) return true;
         };
@@ -241,11 +224,11 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         if (_isOwner(principal)) {
             return;
         };
-        OWNERS := Array.append(OWNERS, [principal]);
+        owners := Array.append(owners, [principal]);
     };
 
     private func _removeOwner(principal : Principal) {
-        OWNERS := Array.filter<Principal>(OWNERS, func (v) {v != principal});
+        owners := Array.filter<Principal>(owners, func (v) {v != principal});
     };
 
 };

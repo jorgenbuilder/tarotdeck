@@ -11,7 +11,22 @@ module {
 
     public class Tarot (state : Types.State) {
 
-        public shared func randomizedCard () : async { #ok : Types.RandomizedCard; #error : Text; } {
+        var deckmeta = state.deckmeta;
+
+        public func getDeckInfo () : Types.Metadata {
+            deckmeta;
+        };
+
+        public func setDeckInfo (request : Types.Metadata) : Types.Metadata {
+            deckmeta := request;
+            deckmeta;
+        };
+
+        public func getCardInfo (index : Nat) : ?Types.Card {
+            ?Data.Cards[index];
+        };
+
+        public shared func getRandomizedCard () : async { #ok : Types.RandomizedCard; #error : Text; } {
             let randomness = Random.Finite(await Random.blob());
             let index = do {
                 switch (randomness.byte()) {
@@ -29,10 +44,6 @@ module {
                     };
                 };
             });
-        };
-
-        public func cardInfo (index : Nat) : ?Types.Card {
-            ?Data.Cards[index];
         };
         
     };
