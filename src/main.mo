@@ -138,6 +138,10 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
         ledger.entries();
     };
 
+    public query func getUserTokens(user : ExtCore.User) : async [ExtCore.TokenIndex] {
+        ledger.getUserTokens(user);
+    };
+
 
     // Tarot deck
 

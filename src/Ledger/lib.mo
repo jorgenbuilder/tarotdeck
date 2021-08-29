@@ -1,3 +1,4 @@
+import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
@@ -15,15 +16,37 @@ module {
 
     public class Ledger (state : Types.State) {
 
+
         ////////////
         // State //
         //////////
 
-        let ledger : HashMap.HashMap<ExtCore.TokenIndex, ExtCore.AccountIdentifier> = HashMap.fromIter(state.ledgerEntries.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+        let ledger = HashMap.HashMap<ExtCore.TokenIndex, ExtCore.AccountIdentifier>(
+            state.ledgerEntries.size(),
+            ExtCore.TokenIndex.equal,
+            ExtCore.TokenIndex.hash,
+        );
 
-        let extMetaData : Types.ExtMetadata = #nonfungible({ metadata = ?[Blob.fromArray([])]; }); 
+        // Denormalized ledger indexed on users
+        let entriesByUser = HashMap.HashMap<ExtCore.AccountIdentifier, [ExtCore.TokenIndex]>(
+            state.ledgerEntries.size(),
+            ExtAccountId.equal,
+            ExtAccountId.hash,
+        );
+
+        let extMetaData : Types.ExtMetadata = #nonfungible({
+            metadata = ?[Blob.fromArray([])];
+        });
+
+        // Initialize the class with state from the parent actor,
+        // state is passed back up during canister upgrade:
 
         public var nextTokenId = state.nextTokenId;
+
+        for ((tokenIndex, accountIdentifier) in Iter.fromArray(state.ledgerEntries)) {
+            ledger.put(tokenIndex, accountIdentifier);
+            _indexToken(tokenIndex, accountIdentifier, entriesByUser);
+        };
 
 
         //////////
@@ -92,6 +115,7 @@ module {
             let token = nextTokenId;
 
             ledger.put(token, recipient);
+            _indexToken(token, recipient, entriesByUser);
             nextTokenId := nextTokenId + 1;
         };
 
@@ -105,6 +129,25 @@ module {
             #ok(Iter.size(ledger.entries()));
         };
 
+        public func getUserTokens (user : ExtCore.User) : [ExtCore.TokenIndex] {
+            switch (entriesByUser.get(ExtCore.User.toAID(user))) {
+                case (null) [];
+                case (?entries) entries;
+            };
+        };
+
+    };
+
+    // Convenience method to add a token to our denormalized index maps
+    private func _indexToken (
+        token : ExtCore.TokenIndex,
+        id : ExtCore.AccountIdentifier,
+        map : HashMap.HashMap<ExtCore.AccountIdentifier, [ExtCore.TokenIndex]>
+    ) : () {
+        switch (map.get(id)) {
+            case (null) map.put(id, [token]);
+            case (?tokens) map.put(id, Array.append(tokens, [token]));
+        };
     };
 
 };
