@@ -1,4 +1,4 @@
-import DlStatic "mo:dl-nft/Static";
+import DlStatic "mo:dl-nft/static";
 
 module {
 

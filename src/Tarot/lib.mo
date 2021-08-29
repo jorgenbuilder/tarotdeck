@@ -26,7 +26,7 @@ module {
             ?Data.Cards[index];
         };
 
-        public shared func getRandomizedCard () : async { #ok : Types.RandomizedCard; #error : Text; } {
+        public func getRandomizedCard () : async { #ok : Types.RandomizedCard; #error : Text; } {
             let randomness = Random.Finite(await Random.blob());
             let index = do {
                 switch (randomness.byte()) {
