@@ -1,28 +1,16 @@
 import Array "mo:base/Array";
-import Blob "mo:base/Blob";
-import Cycles "mo:base/ExperimentalCycles";
-import Debug "mo:base/Debug";
 import Error "mo:base/Error";
-import HashMap "mo:base/HashMap";
-import Float "mo:base/Float";
 import Int "mo:base/Int";
-import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
-import Nat8 "mo:base/Nat8";
 import Principal "mo:base/Principal";
 import Random "mo:base/Random";
 import Result "mo:base/Result";
-import Option "mo:base/Option";
 import Text "mo:base/Text";
 
-import DlNft "mo:dl-nft/main";
 import DlStatic "mo:dl-nft/static";
-import DlNftTypes "mo:dl-nft/types";
 import DlHttp "mo:dl-nft/http";
 import ExtCore "mo:ext/Core";
-import ExtCommon "mo:ext/Common";
 import ExtNonFungible "mo:ext/NonFungible";
-import ExtAccountId "mo:ext/util/AccountIdentifier";
 
 import Assets "./Assets";
 import AssetTypes "./Assets/types";
@@ -31,7 +19,6 @@ import Ledger "./Ledger";
 import LedgerTypes "./Ledger/types";
 import Tarot "./Tarot";
 import TarotTypes "./Tarot/types";
-import TarotData "./Tarot/data";
 
 
 shared ({ caller = creator }) actor class BetaDeck() = canister {
