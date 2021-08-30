@@ -6,6 +6,7 @@ module {
 
     public type Metadata = {
         name : Text;
+        flavour : Text;
         description : Text;
         artists : [Text];
     };

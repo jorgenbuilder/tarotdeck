@@ -104,3 +104,10 @@ dfx canister call tarotdeck readLedger
 - [ ] Deck canisters can serve a randomized entire deck (i.e. randomized [0-77] cards).
 - [ ] Admins can configure the rate at which reversed card draws occur.
 - [ ] Image assets served over Https should be given a very long-lived expire header if the canister is in production mode.
+
+
+## Donate to a canister
+
+```shell
+dfx canister call <your_wallet_canister_id> wallet_send '(record { canister = principal "<tarotdeck_canister_id>"; amount = (1_000_000_000_000:nat64); } )'
+```

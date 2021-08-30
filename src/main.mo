@@ -1,4 +1,5 @@
 import Array "mo:base/Array";
+import Cycles "mo:base/ExperimentalCycles";
 import Error "mo:base/Error";
 import Int "mo:base/Int";
 import Nat "mo:base/Nat";
@@ -32,7 +33,9 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
     // Admin and metadata
 
     stable var initialized : Bool = false;
-    stable var deckmeta : TarotTypes.Metadata = { name = "Uninitialized";
+    stable var deckmeta : TarotTypes.Metadata = {
+        name = "Uninitialized";
+        flavour = "";
         description = "";
         artists = [];
     };
@@ -195,6 +198,17 @@ shared ({ caller = creator }) actor class BetaDeck() = canister {
 
     public query func http_request(request : DlHttp.Request) : async DlHttp.Response {
         httpHandler.request(request);
+    };
+
+
+    // Cycles
+
+    public query func wallet_balance () : async Nat {
+        Cycles.balance();
+    };
+
+    public func wallet_receive () : async Nat {
+        Cycles.accept(Cycles.available());
     };
     
 
