@@ -58,7 +58,7 @@ dfx canister call $(dfx identity get-wallet) wallet_call "(record {\
         },\
         record {\
             name = \"R.W.S.\";\
-            flavour = "The traditional Tarot deck.";\
+            flavour = \"The traditional Tarot deck.\";\
             description = \"A basic Rider Waite Smith deck.\";\
             artists = vec {\
                 \"Pamela Coleman Smith\"\
@@ -95,16 +95,6 @@ Read the ledger:
 ```zsh
 dfx canister call tarotdeck readLedger
 ```
-
-
-## Roadmap
-
-- [ ] Saga decks can be listed on Toniq's marketplace (adhere to EXT standard.)
-- [ ] Deck canisters can be discovered arbitrarily using a common Typescript interface.
-- [ ] Deck canisters can be queried for ownership to restrict use of the deck using a common Typescript interface.
-- [ ] Deck canisters can serve a randomized entire deck (i.e. randomized [0-77] cards).
-- [ ] Admins can configure the rate at which reversed card draws occur.
-- [ ] Image assets served over Https should be given a very long-lived expire header if the canister is in production mode.
 
 
 ## Donate to a canister
