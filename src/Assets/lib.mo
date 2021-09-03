@@ -5,7 +5,7 @@ import Result "mo:base/Result";
 
 import DlStatic "mo:dl-nft/static";
 
-import Types "./types";
+import Types "types";
 
 
 module {

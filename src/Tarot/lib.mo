@@ -3,8 +3,8 @@ import Int "mo:base/Int";
 import Nat8 "mo:base/Nat8";
 import Random "mo:base/Random";
 
-import Data "./data";
-import Types "./types";
+import Data "data";
+import Types "types";
 
 
 module {

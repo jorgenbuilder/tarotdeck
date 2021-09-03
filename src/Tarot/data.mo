@@ -1,4 +1,4 @@
-import Types "./types";
+import Types "types";
 
 module {
     public let Cards : [Types.Card] = [

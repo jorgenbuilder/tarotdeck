@@ -9,7 +9,7 @@ import DlHttp "mo:dl-nft/http";
 import Tarot "../Tarot/types";
 import TarotData "../Tarot/data";
 
-import Types "./types";
+import Types "types";
 
 
 module {

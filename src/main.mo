@@ -13,13 +13,13 @@ import DlHttp "mo:dl-nft/http";
 import ExtCore "mo:ext/Core";
 import ExtNonFungible "mo:ext/NonFungible";
 
-import Assets "./Assets";
-import AssetTypes "./Assets/types";
-import Http "./Http";
-import Ledger "./Ledger";
-import LedgerTypes "./Ledger/types";
-import Tarot "./Tarot";
-import TarotTypes "./Tarot/types";
+import Assets "Assets";
+import AssetTypes "Assets/types";
+import Http "Http";
+import Ledger "Ledger";
+import LedgerTypes "Ledger/types";
+import Tarot "Tarot";
+import TarotTypes "Tarot/types";
 
 
 shared ({ caller = creator }) actor class BetaDeck() = canister {

@@ -10,7 +10,7 @@ import ExtCore "mo:ext/Core";
 import ExtNonFungible "mo:ext/NonFungible";
 import ExtAccountId "mo:ext/util/AccountIdentifier";
 
-import Types "./types";
+import Types "types";
 
 module {
 
