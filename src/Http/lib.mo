@@ -19,7 +19,7 @@ module {
         public func request(request : DlHttp.Request) : DlHttp.Response {
             Debug.print("Handle HTTP: " # request.url);
             
-            if (Text.contains(request.url, #text("?tokenid"))) {
+            if (Text.contains(request.url, #text("tokenid"))) {
                 // EXT preview
                 return httpCardAsset("0");
             };
