@@ -1,4 +1,4 @@
 {
-  dependencies = [ "base", "ext", "dl-nft", "c4" ],
+  dependencies = [ "base", "ext", "dl-nft" ],
   compiler = None Text
 }
